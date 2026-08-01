@@ -1,0 +1,6 @@
+{
+  "name": "TextLift - In-Browser OCR & Document Text Extractor",
+  "description": "Extract text accurately from scanned PDFs, images, and text documents entirely in the browser without requiring external APIs.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
