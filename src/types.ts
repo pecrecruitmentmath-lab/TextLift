@@ -6,6 +6,7 @@ export interface ExtractedPage {
   pageNumber: number;
   text: string;
   source: 'text_layer' | 'ocr' | 'text_file';
+  engine?: 'local' | 'gemini';
   confidence?: number;
   dataUrl?: string; // Rendered image thumbnail for side-by-side view
   charCount: number;
@@ -30,6 +31,7 @@ export interface DocumentItem {
   textLayerPageCount: number;
   totalPages: number;
   thumbnailUrl?: string;
+  engineUsed?: 'local' | 'gemini';
 }
 
 export interface LanguageOption {
@@ -40,6 +42,7 @@ export interface LanguageOption {
 }
 
 export interface ExtractionOptions {
+  engine: 'local' | 'gemini'; // Local (Tesseract) vs Gemini AI Vision
   mode: ExtractionMode;
   languages: string[]; // Tesseract language codes e.g. ['eng', 'urd', 'ara']
   preprocessImage: boolean;

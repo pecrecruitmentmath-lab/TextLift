@@ -42,6 +42,59 @@ export const ExtractionSettings: React.FC<ExtractionSettingsProps> = ({
         </div>
       </div>
 
+      {/* OCR Engine Selection (Local Wasm vs Gemini AI) */}
+      <div className="bg-stone-50 dark:bg-stone-850 p-3 rounded-lg border border-stone-200 dark:border-stone-800 space-y-2">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-semibold text-stone-900 dark:text-stone-100 flex items-center space-x-1.5">
+            <span>OCR Processing Engine</span>
+          </span>
+          <span className="text-[10px] font-mono text-stone-500">Choose extraction technology</span>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => onChange({ ...options, engine: 'local' })}
+            className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer flex items-start space-x-2.5 ${
+              options.engine === 'local' || !options.engine
+                ? 'border-emerald-500 bg-emerald-50/40 dark:bg-emerald-950/30 ring-1 ring-emerald-500/50'
+                : 'border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 opacity-70 hover:opacity-100'
+            }`}
+          >
+            <Zap className="w-4 h-4 text-emerald-600 dark:text-emerald-400 mt-0.5 shrink-0" />
+            <div>
+              <div className="text-xs font-semibold text-stone-900 dark:text-stone-100 flex items-center space-x-1.5">
+                <span>Local Engine (Tesseract Wasm)</span>
+                <span className="px-1.5 py-0.2 text-[9px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200 rounded">100% Free</span>
+              </div>
+              <div className="text-[11px] text-stone-500 dark:text-stone-400 leading-tight mt-0.5">
+                Runs entirely in your browser offline. Zero server calls or API usage.
+              </div>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onChange({ ...options, engine: 'gemini' })}
+            className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer flex items-start space-x-2.5 ${
+              options.engine === 'gemini'
+                ? 'border-amber-500 bg-amber-50/40 dark:bg-amber-950/30 ring-1 ring-amber-500/50'
+                : 'border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 opacity-70 hover:opacity-100'
+            }`}
+          >
+            <Sparkles className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
+            <div>
+              <div className="text-xs font-semibold text-stone-900 dark:text-stone-100 flex items-center space-x-1.5">
+                <span>Gemini AI Vision Engine</span>
+                <span className="px-1.5 py-0.2 text-[9px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200 rounded">AI Powered</span>
+              </div>
+              <div className="text-[11px] text-stone-500 dark:text-stone-400 leading-tight mt-0.5">
+                Highest precision like Gemini Chat. Perfect for scanned docs, Urdu & complex layouts.
+              </div>
+            </div>
+          </button>
+        </div>
+      </div>
+
       {/* Mode Selector */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
         <button

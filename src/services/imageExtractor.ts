@@ -1,5 +1,6 @@
 import { ExtractedPage, ExtractionOptions } from '../types';
 import { recognizeImageCanvas } from './ocrService';
+import { extractTextWithGeminiAI } from './geminiOcrService';
 import { cleanTextFormatting } from './pdfExtractor';
 
 export async function extractImageDocument(
@@ -39,20 +40,56 @@ export async function extractImageDocument(
   const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
   URL.revokeObjectURL(imageUrl);
 
-  onProgress(0.15, 'Running OCR recognition...');
+  let text = '';
+  let confidence = 0;
+  let pageEngine: 'local' | 'gemini' = options.engine || 'local';
 
-  const ocrResult = await recognizeImageCanvas(
-    canvas,
-    options.languages,
-    options.preprocessImage !== false,
-    options.ignoreWatermarks !== false,
-    options.customWatermarkPattern,
-    (pct, msg) => {
-      onProgress(0.15 + pct * 0.8, msg);
+  if (options.engine === 'gemini') {
+    onProgress(0.2, 'Extracting text using Gemini AI Vision...');
+    try {
+      const base64Png = canvas.toDataURL('image/png');
+      const geminiRes = await extractTextWithGeminiAI(
+        base64Png,
+        'image/png',
+        options.languages.join(', ')
+      );
+      text = geminiRes.text;
+      confidence = 99;
+      pageEngine = 'gemini';
+    } catch (geminiErr: any) {
+      console.warn('Gemini AI image extraction failed, falling back to local OCR:', geminiErr);
+      onProgress(0.3, 'Falling back to Local OCR Engine...');
+      const ocrResult = await recognizeImageCanvas(
+        canvas,
+        options.languages,
+        options.preprocessImage !== false,
+        options.ignoreWatermarks !== false,
+        options.customWatermarkPattern,
+        (pct, msg) => {
+          onProgress(0.3 + pct * 0.65, msg);
+        }
+      );
+      text = ocrResult.text;
+      confidence = ocrResult.confidence;
+      pageEngine = 'local';
     }
-  );
+  } else {
+    onProgress(0.15, 'Running Local OCR recognition...');
+    const ocrResult = await recognizeImageCanvas(
+      canvas,
+      options.languages,
+      options.preprocessImage !== false,
+      options.ignoreWatermarks !== false,
+      options.customWatermarkPattern,
+      (pct, msg) => {
+        onProgress(0.15 + pct * 0.8, msg);
+      }
+    );
+    text = ocrResult.text;
+    confidence = ocrResult.confidence;
+    pageEngine = 'local';
+  }
 
-  let text = ocrResult.text;
   if (options.autoFormat) {
     text = cleanTextFormatting(text);
   }
@@ -64,13 +101,14 @@ export async function extractImageDocument(
     pageNumber: 1,
     text,
     source: 'ocr',
-    confidence: ocrResult.confidence,
+    engine: pageEngine,
+    confidence,
     dataUrl,
     charCount,
     wordCount,
   };
 
-  onProgress(1.0, 'Image OCR complete');
+  onProgress(1.0, 'Image extraction complete');
 
   return {
     pages: [page],

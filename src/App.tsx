@@ -15,6 +15,7 @@ export default function App() {
   const [isProcessingAny, setIsProcessingAny] = useState(false);
 
   const [options, setOptions] = useState<ExtractionOptions>({
+    engine: 'local',
     mode: 'auto',
     languages: ['eng'],
     preprocessImage: true,
@@ -222,9 +223,9 @@ export default function App() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center space-x-2">
             <Globe className="w-4 h-4 text-amber-500" />
-            <span>TextLift — Powered by PDF.js & Tesseract.js WebAssembly</span>
+            <span>TextLift — Browser Document & OCR Extraction</span>
           </div>
-          <div>100% Client-Side • Ready for Vercel & Static Hosting</div>
+          <div>Free & Private • 100% Client-Side</div>
         </div>
       </footer>
     </div>

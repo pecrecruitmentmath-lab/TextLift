@@ -2,6 +2,7 @@ import * as pdfjsLib from 'pdfjs-dist';
 import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import { ExtractedPage, ExtractionOptions } from '../types';
 import { recognizeImageCanvas } from './ocrService';
+import { extractTextWithGeminiAI } from './geminiOcrService';
 import { repairUrduCursiveText, isUrduOrRtlText } from '../utils/urduFormatter';
 import { filterWatermarkLines, removeCrossPageWatermarks } from '../utils/watermarkFilter';
 
@@ -175,30 +176,65 @@ export async function extractPdfDocument(
           }
         }
 
+        let pageEngine: 'local' | 'gemini' = options.engine || 'local';
+
         if (shouldRunOcr && options.mode !== 'never') {
           pageSource = 'ocr';
           ocrPageCount++;
 
-          try {
-            const ocrResult = await recognizeImageCanvas(
-              canvas,
-              options.languages,
-              options.preprocessImage !== false,
-              options.ignoreWatermarks !== false,
-              options.customWatermarkPattern,
-              (pct, msg) => {
-                const subPct = currentProgress + (pct / numPages) * 0.9;
-                onProgress(subPct, `Page ${pageNum}: ${msg}`);
+          if (options.engine === 'gemini') {
+            try {
+              onProgress(currentProgress + 0.3 / numPages, `Page ${pageNum}: Extracting with Gemini AI Vision...`);
+              const base64Data = canvas.toDataURL('image/png');
+              const geminiRes = await extractTextWithGeminiAI(
+                base64Data,
+                'image/png',
+                options.languages.join(', ')
+              );
+              pageText = geminiRes.text;
+              confidence = 99;
+              pageEngine = 'gemini';
+            } catch (geminiErr: any) {
+              console.warn(`Gemini AI extraction failed for page ${pageNum}, falling back to local OCR:`, geminiErr);
+              onProgress(currentProgress + 0.4 / numPages, `Page ${pageNum}: Fallback to Local OCR...`);
+              try {
+                const ocrResult = await recognizeImageCanvas(
+                  canvas,
+                  options.languages,
+                  options.preprocessImage !== false,
+                  options.ignoreWatermarks !== false,
+                  options.customWatermarkPattern
+                );
+                pageText = ocrResult.text;
+                confidence = ocrResult.confidence;
+                pageEngine = 'local';
+              } catch (ocrErr: any) {
+                pageText = rawLayerText || `[Extraction error on page ${pageNum}]`;
               }
-            );
+            }
+          } else {
+            try {
+              const ocrResult = await recognizeImageCanvas(
+                canvas,
+                options.languages,
+                options.preprocessImage !== false,
+                options.ignoreWatermarks !== false,
+                options.customWatermarkPattern,
+                (pct, msg) => {
+                  const subPct = currentProgress + (pct / numPages) * 0.9;
+                  onProgress(subPct, `Page ${pageNum}: ${msg}`);
+                }
+              );
 
-            pageText = ocrResult.text;
-            confidence = ocrResult.confidence;
-          } catch (ocrErr: any) {
-            console.error(`OCR failed for page ${pageNum}:`, ocrErr);
-            pageText =
-              rawLayerText ||
-              `[OCR processing error on page ${pageNum}: ${ocrErr?.message || 'Failed'}]`;
+              pageText = ocrResult.text;
+              confidence = ocrResult.confidence;
+              pageEngine = 'local';
+            } catch (ocrErr: any) {
+              console.error(`OCR failed for page ${pageNum}:`, ocrErr);
+              pageText =
+                rawLayerText ||
+                `[OCR processing error on page ${pageNum}: ${ocrErr?.message || 'Failed'}]`;
+            }
           }
         } else {
           textLayerPageCount++;
@@ -220,6 +256,7 @@ export async function extractPdfDocument(
           pageNumber: pageNum,
           text: pageText,
           source: pageSource,
+          engine: pageEngine,
           confidence,
           dataUrl,
           charCount: chars,

@@ -20,6 +20,7 @@ import {
 import { DocumentItem, ExtractedPage } from '../types';
 import { cleanTextFormatting } from '../services/pdfExtractor';
 import { repairUrduCursiveText, getUrduTextStyle, isUrduOrRtlText } from '../utils/urduFormatter';
+import { extractTextWithGeminiAI } from '../services/geminiOcrService';
 
 interface DocumentViewerProps {
   document: DocumentItem;
@@ -37,8 +38,56 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
   const [imageZoom, setImageZoom] = useState(false);
   const [urduFontSize, setUrduFontSize] = useState<number>(22);
   const [urduFontStyle, setUrduFontStyle] = useState<'nastaliq' | 'sans_arabic' | 'mono'>('sans_arabic');
+  const [isGeminiExtracting, setIsGeminiExtracting] = useState(false);
 
   const currentPage = docItem.pages.find((p) => p.pageNumber === selectedPageNum) || docItem.pages[0];
+
+  const handleGeminiAiExtract = async () => {
+    if (!currentPage || isGeminiExtracting) return;
+    setIsGeminiExtracting(true);
+
+    try {
+      let base64Image = currentPage.dataUrl;
+
+      if (!base64Image && docItem.file.type.startsWith('image/')) {
+        const arrayBuffer = await docItem.file.arrayBuffer();
+        const blob = new Blob([arrayBuffer], { type: docItem.file.type });
+        base64Image = await new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.readAsDataURL(blob);
+        });
+      }
+
+      if (!base64Image) {
+        alert('Page image is not available for Gemini AI extraction.');
+        setIsGeminiExtracting(false);
+        return;
+      }
+
+      const result = await extractTextWithGeminiAI(
+        base64Image,
+        'image/png',
+        isUrduOrRtlText(currentPage.text) ? 'urdu, arabic' : 'english'
+      );
+
+      if (result.text) {
+        currentPage.text = result.text;
+        currentPage.engine = 'gemini';
+        currentPage.source = 'ocr';
+
+        const newFullText = docItem.pages
+          .map((p) => `--- Page ${p.pageNumber} (${p.engine === 'gemini' ? 'Gemini AI' : p.source === 'ocr' ? 'OCR' : 'Text Layer'}) ---\n${p.text}`)
+          .join('\n\n');
+
+        onUpdateFullText(docItem.id, newFullText);
+      }
+    } catch (err: any) {
+      alert(`Gemini AI Extraction Error: ${err.message || 'Failed to extract text with Gemini'}`);
+    } finally {
+      setIsGeminiExtracting(false);
+    }
+  };
 
   // Search matches count
   const getSearchMatchCount = (text: string) => {
@@ -275,6 +324,17 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
           >
             <Languages className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
             <span>Fix Urdu Words</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleGeminiAiExtract}
+            disabled={isGeminiExtracting}
+            title="Re-extract this page using Gemini AI Vision model for highest accuracy (like Gemini chat)"
+            className="px-2.5 py-1 rounded border border-amber-400 dark:border-amber-700 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white text-[11px] font-bold flex items-center space-x-1.5 shadow-xs cursor-pointer disabled:opacity-50"
+          >
+            <Sparkles className={`w-3.5 h-3.5 text-amber-100 ${isGeminiExtracting ? 'animate-spin' : ''}`} />
+            <span>{isGeminiExtracting ? 'Gemini Extracting...' : 'Extract with Gemini AI'}</span>
           </button>
 
           {/* Typography Controls for Urdu / RTL Readability */}
