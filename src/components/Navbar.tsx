@@ -36,8 +36,8 @@ export const Navbar: React.FC<NavbarProps> = ({
         {/* Feature Badges & Stats */}
         <div className="flex items-center flex-wrap gap-2 text-xs">
           <div className="flex items-center space-x-1.5 px-2.5 py-1 bg-stone-800 rounded-md text-stone-300 border border-stone-700/60">
-            <Cpu className="w-3.5 h-3.5 text-emerald-400" />
-            <span>WebAssembly OCR</span>
+            <Zap className="w-3.5 h-3.5 text-amber-400" />
+            <span>Background Tab Ready</span>
           </div>
 
           <div className="flex items-center space-x-1.5 px-2.5 py-1 bg-stone-800 rounded-md text-stone-300 border border-stone-700/60">

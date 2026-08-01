@@ -7,6 +7,7 @@ import { BatchQueue } from './components/BatchQueue';
 import { DocumentViewer } from './components/DocumentViewer';
 import { DocumentItem, ExtractionOptions } from './types';
 import { detectFileTypeCategory, processDocument } from './services/documentProcessor';
+import { backgroundKeepAlive, createOptimizedProgressCallback } from './utils/backgroundKeepAlive';
 import { Cpu, ShieldCheck, Zap, Sparkles, Layers, Globe } from 'lucide-react';
 
 export default function App() {
@@ -57,18 +58,21 @@ export default function App() {
 
   const processSingleDocument = async (doc: DocumentItem, currentOptions: ExtractionOptions) => {
     setIsProcessingAny(true);
+    backgroundKeepAlive.start();
 
     // Update doc status to processing
     setDocuments((prev) =>
       prev.map((d) => (d.id === doc.id ? { ...d, status: 'processing', progress: 0.05, progressMessage: 'Starting...' } : d))
     );
 
+    const onOptimizedProgress = createOptimizedProgressCallback((progress, message) => {
+      setDocuments((prev) =>
+        prev.map((d) => (d.id === doc.id ? { ...d, progress, progressMessage: message } : d))
+      );
+    });
+
     try {
-      const result = await processDocument(doc, currentOptions, (progress, message) => {
-        setDocuments((prev) =>
-          prev.map((d) => (d.id === doc.id ? { ...d, progress, progressMessage: message } : d))
-        );
-      });
+      const result = await processDocument(doc, currentOptions, onOptimizedProgress);
 
       setDocuments((prev) =>
         prev.map((d) =>
@@ -107,6 +111,7 @@ export default function App() {
       );
     } finally {
       setIsProcessingAny(false);
+      backgroundKeepAlive.stop();
     }
   };
 
